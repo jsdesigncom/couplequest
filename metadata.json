@@ -1,0 +1,7 @@
+{
+  "name": "CoupleQuest: The Infinite Date Generator",
+  "description": "An app designed to help couples discover endless date ideas, tailored to their preferences and location.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
