@@ -1,20 +1,21 @@
 // api/generate-date-idea.js
-// Vercel Serverless Function with Fixed CORS
+// Simplified version with proper CORS
+
+// Helper function to set CORS headers
+const setCorsHeaders = (res) => {
+  res.setHeader('Access-Control-Allow-Origin', 'https://couplequestlive.com');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
+};
 
 export default async function handler(req, res) {
-  // Set CORS headers for ALL responses
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', 'https://couplequestlive.com');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  // Set CORS headers FIRST, before anything else
+  setCorsHeaders(res);
   
-  // Handle preflight request
+  // Handle preflight
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
   
   // Only allow POST
@@ -25,114 +26,97 @@ export default async function handler(req, res) {
   try {
     const { profile, location, manualLocation, recentTitles } = req.body;
     
-    // Validate request
-    if (!profile || !profile.interests) {
-      return res.status(400).json({ 
-        error: 'Invalid request: profile with interests is required' 
-      });
+    // Validate
+    if (!profile?.interests) {
+      return res.status(400).json({ error: 'Invalid request' });
     }
     
-    // Get API key from environment variable
+    // Get API key
     const apiKey = process.env.GEMINI_API_KEY;
-    
     if (!apiKey) {
-      console.error('GEMINI_API_KEY not configured');
       return res.status(500).json({ error: 'Server configuration error' });
     }
     
-    // Build location prompt
-    let locationPromptPart = '';
+    // Build prompt
+    let locationPrompt = '';
     if (location?.latitude && location.longitude) {
-      locationPromptPart = `Their current location is approximately latitude ${location.latitude} and longitude ${location.longitude}. If you suggest a local activity (like a specific restaurant, park, or venue), make it near this location.`;
+      locationPrompt = `Location: ${location.latitude}, ${location.longitude}`;
     } else if (manualLocation) {
-      locationPromptPart = `Their current location is near ${manualLocation}. If you suggest a local activity (like a specific restaurant, park, or venue), make it in or very close to this area.`;
-    } else {
-      locationPromptPart = 'Since their location is unavailable, please prioritize universal activities that can be done anywhere.';
+      locationPrompt = `Location: ${manualLocation}`;
     }
     
-    // Build the prompt
-    const prompt = `
-A couple is looking for a date idea. Please generate a creative and engaging suggestion.
+    const prompt = `Generate a date idea for a couple.
 
-Their Profile:
+Profile:
 - Interests: ${profile.interests}
-- Preferred Budgets: ${profile.preferred_budget.join(', ')}
+- Budget: ${profile.preferred_budget.join(', ')}
 - Availability: ${profile.availability.join(', ')}
+${locationPrompt}
 
-Location context: ${locationPromptPart}
+Avoid: ${recentTitles || 'none'}
 
-To ensure variety, please AVOID suggesting ideas similar to these recent ones: ${recentTitles || 'None yet'}.
-
-Generate one new, unique date idea that fits their profile and location.
-`;
+Return JSON with: title, description, budget, time_required, couple_benefit, category, is_local, location_details`;
     
-    // Call Gemini API
-    const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+    // Call Gemini with timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000); // 25 second timeout
     
-    const response = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          temperature: 1.0,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              description: { type: 'string' },
-              budget: { type: 'string' },
-              time_required: { type: 'string' },
-              couple_benefit: { type: 'string' },
-              category: { type: 'string' },
-              is_local: { type: 'boolean' },
-              location_details: { type: 'string' }
-            },
-            required: ['title', 'description', 'budget', 'time_required', 'couple_benefit', 'category', 'is_local', 'location_details']
+    const geminiResponse = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 1.0,
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                description: { type: 'string' },
+                budget: { type: 'string' },
+                time_required: { type: 'string' },
+                couple_benefit: { type: 'string' },
+                category: { type: 'string' },
+                is_local: { type: 'boolean' },
+                location_details: { type: 'string' }
+              },
+              required: ['title', 'description', 'budget', 'time_required', 'couple_benefit', 'category', 'is_local', 'location_details']
+            }
           }
-        }
-      })
-    });
+        }),
+        signal: controller.signal
+      }
+    );
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API error:', errorText);
-      return res.status(response.status).json({ 
-        error: 'Failed to generate date idea' 
-      });
+    clearTimeout(timeout);
+    
+    if (!geminiResponse.ok) {
+      throw new Error(`Gemini API error: ${geminiResponse.status}`);
     }
     
-    const data = await response.json();
+    const data = await geminiResponse.json();
     
-    // Extract the generated content
     if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      const ideaText = data.candidates[0].content.parts[0].text.trim();
-      const idea = JSON.parse(ideaText);
-      
-      // Add ID and return
-      const dateIdea = {
+      const idea = JSON.parse(data.candidates[0].content.parts[0].text.trim());
+      return res.status(200).json({
         ...idea,
         id: new Date().toISOString()
-      };
-      
-      return res.status(200).json(dateIdea);
-    } else {
-      console.error('Unexpected API response:', data);
-      return res.status(500).json({ 
-        error: 'Unexpected response from AI service' 
       });
     }
     
+    throw new Error('Invalid API response');
+    
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error:', error.message);
     return res.status(500).json({ 
-      error: 'Internal server error'
+      error: 'Failed to generate date idea',
+      details: error.message 
     });
   }
 }
