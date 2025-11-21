@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DateIdea, UserProfile, LocationCoords, DistancePreference } from './types';
 import useLocalStorage from './hooks/useLocalStorage';
 import { generateDateIdea } from './services/geminiService';
@@ -32,11 +32,12 @@ const App: React.FC = () => {
   const [manualLocationInput, setManualLocationInput] = useState('');
   const [manualLocationQuery, setManualLocationQuery] = useState('');
   const [distancePreference, setDistancePreference] = useState<DistancePreference>('any');
+  const justSavedProfile = useRef(false);
   
   // Set initial idea from history when data loads for a user
   useEffect(() => {
-    // Do not interfere while a new idea is being generated.
-    if (isLoading) {
+    // Do not interfere while a new idea is being generated or right after a profile save.
+    if (isLoading || justSavedProfile.current) {
       return;
     }
 
@@ -45,7 +46,7 @@ const App: React.FC = () => {
     } else if (history.length === 0) {
       setCurrentIdea(null);
     }
-  }, [history, currentIdea, isLoading]);
+  }, [history, currentIdea, isLoading, justSavedProfile]);
 
 
   const requestLocation = useCallback(() => {
@@ -72,8 +73,41 @@ const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
   
+  const handleGenerateIdea = useCallback(async () => {
+    if (!profile || isLoading) return;
+
+    setIsLoading(true);
+    justSavedProfile.current = false; // Reset the flag here, ensuring it's false when generation starts
+    setError(null);
+    setCurrentIdea(null); // Clear current idea explicitly before fetching new one
+
+    const newIdea = await generateDateIdea(profile, location, manualLocationQuery, history, distancePreference);
+
+    if (newIdea) {
+      setCurrentIdea(newIdea);
+      setHistory(prevHistory => [newIdea, ...prevHistory]);
+    } else {
+      setError("Oops! Couldn't generate an idea. Please try again.");
+      // Only restore history[0] if the *new* generation failed.
+      if (history.length > 0) {
+        setCurrentIdea(history[0]);
+      }
+    }
+    setIsLoading(false);
+  }, [profile, isLoading, location, manualLocationQuery, history, setHistory, distancePreference]);
+  
+  // Effect to automatically generate an idea when a new profile is saved.
+  useEffect(() => {
+    if (justSavedProfile.current && profile) {
+      // The flag is now reset inside handleGenerateIdea
+      handleGenerateIdea();
+    }
+  }, [profile, handleGenerateIdea]);
+
   const handleProfileSave = (newProfile: UserProfile) => {
-    setProfile(newProfile);
+    setProfile(newProfile); // Set the profile first
+    justSavedProfile.current = true; // Then set the flag
+    setCurrentIdea(null); // Explicitly clear the current idea
     requestLocation();
   };
 
@@ -104,27 +138,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleGenerateIdea = useCallback(async () => {
-    if (!profile || isLoading) return;
-
-    setIsLoading(true);
-    setError(null);
-    setCurrentIdea(null);
-
-    const newIdea = await generateDateIdea(profile, location, manualLocationQuery, history, distancePreference);
-
-    if (newIdea) {
-      setCurrentIdea(newIdea);
-      setHistory(prevHistory => [newIdea, ...prevHistory]);
-    } else {
-      setError("Oops! Couldn't generate an idea. Please try again.");
-      if (history.length > 0) {
-        setCurrentIdea(history[0]);
-      }
-    }
-    setIsLoading(false);
-  }, [profile, isLoading, location, manualLocationQuery, history, setHistory, distancePreference]);
-  
   const handleFavoriteToggle = (ideaId: string) => {
     const isFavorited = favorites.some(fav => fav.id === ideaId);
     if (isFavorited) {
