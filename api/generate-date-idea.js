@@ -1,5 +1,5 @@
 // api/generate-date-idea.js
-// Updated to use Gemini 2.5 Flash (latest stable model with thinking capabilities)
+// Updated to use Gemini 2.5 Flash with correct v1beta endpoint
 
 // Helper function to set CORS headers
 const setCorsHeaders = (res) => {
@@ -57,12 +57,12 @@ Avoid: ${recentTitles || 'none'}
 
 Return JSON with: title, description, budget, time_required, couple_benefit, category, is_local, location_details`;
     
-    // Call Gemini 2.5 Flash with timeout
+    // Call Gemini 2.5 Flash with timeout (using v1beta endpoint)
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 25000); // 25 second timeout
     
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
