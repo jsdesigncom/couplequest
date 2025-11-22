@@ -1,7 +1,7 @@
 // services/geminiService.ts
 // Secure version - Calls Vercel backend, NOT Gemini directly
 
-import { DateIdea, UserProfile, LocationCoords } from '../types';
+import { DateIdea, UserProfile, LocationCoords, DistancePreference } from '../types';
 
 // Backend API endpoint
 const API_ENDPOINT = process.env.API_ENDPOINT || 'https://couplequest.vercel.app/api/generate-date-idea';
@@ -10,7 +10,8 @@ export const generateDateIdea = async (
   profile: UserProfile,
   location: LocationCoords,
   manualLocation: string,
-  history: DateIdea[]
+  history: DateIdea[],
+  distancePreference: DistancePreference // Added distancePreference
 ): Promise<DateIdea | null> => {
   try {
     const recentlySuggestedTitles = history.slice(0, 20).map(idea => idea.title).join(', ');
@@ -27,7 +28,8 @@ export const generateDateIdea = async (
         profile,
         location,
         manualLocation,
-        recentTitles: recentlySuggestedTitles
+        recentTitles: recentlySuggestedTitles,
+        distancePreference // Added distancePreference to payload
       })
     });
 

@@ -4,20 +4,23 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "mkdir -p dist && echo '{\"message\":\"Backend API only - Frontend hosted on SiteGround\"}' > dist/index.json",
-    "build:frontend": "tailwindcss.exe -i ./src/input.css -o ./dist/output.css --minify && vite build",
-    "preview": "vite preview",
-    "build:css": "tailwindcss.exe -i ./src/input.css -o ./dist/output.css --minify"
+	"dev": "vite",
+	"build": "npx tailwindcss -i ./src/input.css -o ./dist/output.css --minify && vite build",
+	"build:frontend": "npx tailwindcss -i ./src/input.css -o ./dist/output.css --minify && vite build",
+	"preview": "vite preview",
+	"build:css": "npx tailwindcss -i ./src/input.css -o ./dist/output.css --minify"
   },
   "dependencies": {
+    "@google/genai": "^1.29.1",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "@google/genai": "^1.29.1"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.22",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.1",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

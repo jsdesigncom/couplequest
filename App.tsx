@@ -11,8 +11,34 @@ import GuidePanel from './components/GuidePanel';
 import AdBanner from './components/AdBanner';
 import { RefreshIcon, HistoryIcon, HeartIcon, QuestionMarkIcon, HomeIcon } from './components/icons';
 
+const logEmail = async (email: string) => {
+  try {
+    await fetch('/api.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'log_email',
+        email: email,
+      }),
+    });
+    // We don't need to wait for a response or handle errors aggressively here, 
+    // as logging is secondary to the user experience.
+  } catch (error) {
+    console.error("Failed to log email:", error);
+  }
+};
+
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useLocalStorage<string | null>('currentUser', null);
+
+  const handleLogin = (email: string) => {
+    // 1. Log the email asynchronously
+    logEmail(email);
+    // 2. Set the user in local storage to proceed with the app
+    setCurrentUser(email);
+  };
 
   // Dynamically generate keys based on the logged-in user
   const profileKey = currentUser ? `couple-profile-${currentUser}` : null;
@@ -153,7 +179,7 @@ const App: React.FC = () => {
   const isCurrentIdeaFavorited = currentIdea ? favorites.some(fav => fav.id === currentIdea.id) : false;
 
   if (!currentUser) {
-    return <AuthScreen onLogin={setCurrentUser} />;
+    return <AuthScreen onLogin={handleLogin} />;
   }
 
   if (!profile) {
