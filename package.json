@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "echo 'Backend only - no build needed'",
+    "build": "mkdir -p dist && echo '{\"message\":\"Backend API only - Frontend hosted on SiteGround\"}' > dist/index.json",
     "build:frontend": "tailwindcss.exe -i ./src/input.css -o ./dist/output.css --minify && vite build",
     "preview": "vite preview",
     "build:css": "tailwindcss.exe -i ./src/input.css -o ./dist/output.css --minify"
