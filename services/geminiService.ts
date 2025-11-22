@@ -1,6 +1,10 @@
+// services/geminiService.ts
+// Secure version - Calls Vercel backend, NOT Gemini directly
+
 import { DateIdea, UserProfile, LocationCoords } from '../types';
 
-const API_ENDPOINT = process.env.API_ENDPOINT || 'http://localhost:3001/api/generate-date-idea';
+// Backend API endpoint
+const API_ENDPOINT = process.env.API_ENDPOINT || 'https://couplequest.vercel.app/api/generate-date-idea';
 
 export const generateDateIdea = async (
   profile: UserProfile,
@@ -11,6 +15,7 @@ export const generateDateIdea = async (
   try {
     const recentlySuggestedTitles = history.slice(0, 20).map(idea => idea.title).join(', ');
 
+    // Call our secure Vercel backend (NOT Gemini directly)
     const response = await fetch(API_ENDPOINT, {
       method: 'POST',
       mode: 'cors',
